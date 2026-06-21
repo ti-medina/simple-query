@@ -1,0 +1,36 @@
+{
+  "name": "@oracle/simple-query",
+  "version": "0.1.0",
+  "description": "Experimental server-side helpers for Oracle Database queries and JSON collections.",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "pack:check": "npm pack --dry-run"
+  },
+  "keywords": [
+    "oracle",
+    "oracledb",
+    "database",
+    "query",
+    "json",
+    "collections"
+  ],
+  "author": "Oracle",
+  "license": "UPL-1.0",
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "peerDependencies": {
+    "oracledb": "^6.0.0"
+  }
+}
