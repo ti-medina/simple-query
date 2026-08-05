@@ -6,4 +6,4 @@ export {
   getDocuments,
   replaceDocument,
 } from './collections.js'
-export { query, runQuery } from './query.js'
+export { execute, query } from './query.js'

@@ -10,6 +10,18 @@ Experimental server-side helpers for running Oracle Database queries and working
 npm install @oracle/simple-query oracledb
 ```
 
+For manual installation from a local checkout, install the package with a `file:` dependency from the consuming project:
+
+```sh
+npm install file:../simple-query oracledb
+```
+
+Use the path that points to this package directory. For example, from a sibling Next.js app directory:
+
+```sh
+npm install file:../simple-query
+```
+
 This package is designed for server-side JavaScript. Use it from Node.js services, Next.js Route Handlers, Server Actions, Server Components, or other server-only code paths. Do not import it from browser/client components.
 
 ## Configuration
@@ -25,25 +37,27 @@ ORACLE_POOL_MAX=4
 ORACLE_POOL_INCREMENT=1
 ```
 
-You can also pass connection options to `runQuery`.
+Use `query` for statements that return rows, and `execute` for DML or DDL statements where you only need the affected row count or success status.
 
 ## Query API
 
 ```js
-import { query, runQuery } from '@oracle/simple-query'
+import { execute, query } from '@oracle/simple-query'
 
 const result = await query(
   'select * from employees where department_id = :departmentId',
   { departmentId: 10 },
 )
 
-const resultWithConfig = await runQuery({
-  sql: 'select * from employees fetch first :limit rows only',
-  binds: { limit: 25 },
-  user: process.env.ORACLE_USER,
-  password: process.env.ORACLE_PASSWORD,
-  connectString: process.env.ORACLE_CONNECT_STRING,
-})
+const deleted = await execute(
+  'delete from employees where department_id = :departmentId',
+  { departmentId: 10 },
+  { autoCommit: true },
+)
+
+const created = await execute(
+  'create table archived_employees (id number primary key, name varchar2(200))',
+)
 ```
 
 `query` returns an object with:
@@ -53,6 +67,22 @@ const resultWithConfig = await runQuery({
   rows: [],
   rowsAffected: 0,
   metaData: []
+}
+```
+
+`execute` returns an object with `rowsAffected` for DML statements:
+
+```js
+{
+  rowsAffected: 3
+}
+```
+
+For statements where Oracle does not report affected rows, such as many DDL statements, `execute` returns:
+
+```js
+{
+  status: 'success'
 }
 ```
 
@@ -79,6 +109,19 @@ const documents = await getDocuments('customers', {
   orderBy: 'created_at',
 })
 
+const activeCustomers = await getDocuments('customers', {
+  where: '"status" = \'active\'',
+  orderBy: '"name"',
+  limit: 25,
+})
+
+const customersByStatus = await getDocuments('customers', {
+  select: '"status", count(*) as total',
+  groupBy: '"status"',
+  having: 'count(*) > 1',
+  orderBy: 'total desc',
+})
+
 const document = await getDocumentById('customers', created.document._id)
 
 await replaceDocument('customers', created.document._id, {
@@ -89,18 +132,18 @@ await replaceDocument('customers', created.document._id, {
 await deleteDocument('customers', created.document._id)
 ```
 
-You can map public collection names to physical table names:
+`getDocuments` supports these query-shaping options:
 
-```js
-const documents = await getDocuments('customers', {
-  collections: {
-    customers: 'app_customers',
-  },
-  dataColumn: 'payload',
-})
-```
+- `select`: SQL select-list fragment. If omitted, the raw `data` document column is selected and parsed as JSON.
+- `where`: SQL predicate fragment. A leading `where` keyword is optional.
+- `groupBy`: SQL `group by` fragment. A leading `group by` keyword is optional.
+- `having`: SQL `having` fragment. A leading `having` keyword is optional.
+- `orderBy`: SQL `order by` fragment. A leading `order by` keyword is optional.
+- `limit`: Maximum number of rows to return. Defaults to `100`.
 
-Collection, table, column, and order-by identifiers are validated before being interpolated into SQL. Bind variables are used for values.
+Quoted JSON attributes are expanded to `c.data` references. For example, `"status" = 'active'` becomes `c.data."status" = 'active'` in the generated SQL.
+
+These fragments are interpolated into SQL. Do not pass untrusted user input directly into `select`, `where`, `groupBy`, `having`, or `orderBy`.
 
 ## API
 
@@ -118,15 +161,15 @@ Gets a connection from the shared pool.
 
 ### `query(sql, binds?, options?)`
 
-Runs a SQL statement with bind variables and execution options.
+Runs a SQL statement with bind variables and execution options, returning `rows`, `rowsAffected`, and `metaData`.
 
-### `runQuery(options)`
+### `execute(sql, binds?, options?)`
 
-Runs a SQL statement with `sql`, `binds`, `options`, and optional Oracle connection configuration in one object.
+Runs a DML or DDL statement with bind variables and execution options, returning `rowsAffected` when available or `status: 'success'` otherwise.
 
 ### `getDocuments(collection, options?)`
 
-Returns documents from a collection table.
+Returns documents from a collection table. Supports `select`, `where`, `groupBy`, `having`, `orderBy`, and `limit` options.
 
 ### `getDocumentById(collection, id, options?)`
 
