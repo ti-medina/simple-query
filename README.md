@@ -10,6 +10,12 @@ Experimental server-side helpers for running Oracle Database queries and working
 npm install @oracle/simple-query oracledb
 ```
 
+Or, using the github repository:
+
+```sh
+npm install git+https://github.com/ti-medina/simple-query.git#main
+```
+
 For manual installation from a local checkout, install the package with a `file:` dependency from the consuming project:
 
 ```sh
